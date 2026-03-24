@@ -19,10 +19,6 @@ spotify_auth(client_id = NULL, client_secret = NULL)
 
   Your Spotify Client Secret
 
-- redirect_uri:
-
-  Redirect URI (default: http://localhost:8888/callback)
-
 ## Value
 
 Access token (saved to environment)
@@ -31,13 +27,9 @@ Access token (saved to environment)
 
 ``` r
 if (FALSE) { # \dontrun{
-# First time setup
 spotify_auth(
   client_id = "your_client_id",
   client_secret = "your_client_secret"
 )
-
-# Token is saved, now you can use other functions
-history <- get_listening_history()
 } # }
 ```
