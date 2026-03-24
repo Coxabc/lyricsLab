@@ -10,8 +10,6 @@ spotify_auth(client_id = NULL, client_secret = NULL)
 \item{client_id}{Your Spotify Client ID}
 
 \item{client_secret}{Your Spotify Client Secret}
-
-\item{redirect_uri}{Redirect URI (default: http://localhost:8888/callback)}
 }
 \value{
 Access token (saved to environment)
@@ -22,14 +20,10 @@ You'll need to create a Spotify App first at https://developer.spotify.com/dashb
 }
 \examples{
 \dontrun{
-# First time setup
 spotify_auth(
   client_id = "your_client_id",
   client_secret = "your_client_secret"
 )
-
-# Token is saved, now you can use other functions
-history <- get_listening_history()
 }
 
 }

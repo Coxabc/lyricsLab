@@ -5,7 +5,6 @@
 #'
 #' @param client_id Your Spotify Client ID
 #' @param client_secret Your Spotify Client Secret
-#' @param redirect_uri Redirect URI (default: http://localhost:8888/callback)
 #'
 #' @return Access token (saved to environment)
 #'
@@ -13,63 +12,54 @@
 #'
 #' @examples
 #' \dontrun{
-#' # First time setup
 #' spotify_auth(
 #'   client_id = "your_client_id",
 #'   client_secret = "your_client_secret"
 #' )
-#' 
-#' # Token is saved, now you can use other functions
-#' history <- get_listening_history()
 #' }
 #'
-#' @importFrom httr GET POST add_headers content oauth_endpoint oauth_app oauth2.0_token
+#' @importFrom httr POST content status_code
 spotify_auth <- function(client_id = NULL, client_secret = NULL) {
-  
-  # Check if httpuv is available
-  if (!requireNamespace("httpuv", quietly = TRUE)) {
-    stop("httpuv package required for authentication. Install with: install.packages('httpuv')")
+
+  # Prevent crash during R CMD check
+  if (!interactive()) {
+    stop("spotify_auth() must be run in an interactive R session.")
   }
-  
-  # Get credentials from environment if not provided
+
+  # Check httpuv
+  if (!requireNamespace("httpuv", quietly = TRUE)) {
+    stop("httpuv package required. Install with install.packages('httpuv')")
+  }
+
+  # Get credentials
   if (is.null(client_id)) {
     client_id <- Sys.getenv("SPOTIFY_CLIENT_ID")
   }
   if (is.null(client_secret)) {
     client_secret <- Sys.getenv("SPOTIFY_CLIENT_SECRET")
   }
-  
-  # Trim any whitespace from credentials
+
   client_id <- trimws(client_id)
   client_secret <- trimws(client_secret)
-  
+
   if (client_id == "" || client_secret == "") {
-    stop(paste(
-      "Spotify credentials not found.",
-      "Set them with:",
-      "  Sys.setenv(SPOTIFY_CLIENT_ID = 'your_id')",
-      "  Sys.setenv(SPOTIFY_CLIENT_SECRET = 'your_secret')",
-      "Or get them at: https://developer.spotify.com/dashboard",
-      sep = "\n"
-    ))
+    stop("Spotify credentials not found. Set with Sys.setenv().")
   }
-  
-  # Setup
+
   redirect_uri <- "http://127.0.0.1:1410/"
   port <- 1410
-  
+
   scopes <- c(
     "user-read-recently-played",
     "user-top-read",
     "user-library-read",
     "playlist-read-private"
   )
+
   scope_string <- paste(scopes, collapse = " ")
-  
-  # Generate state for security
+
   state <- paste(sample(c(letters, LETTERS, 0:9), 20, replace = TRUE), collapse = "")
-  
-  # Build authorization URL
+
   auth_url <- paste0(
     "https://accounts.spotify.com/authorize",
     "?client_id=", client_id,
@@ -78,81 +68,62 @@ spotify_auth <- function(client_id = NULL, client_secret = NULL) {
     "&scope=", utils::URLencode(scope_string, reserved = TRUE),
     "&state=", state
   )
-  
-  message("\n=== SPOTIFY AUTHENTICATION ===\n")
-  message("Opening browser for authorization...")
-  message("Please log in and authorize the app.\n")
-  message("After authorizing, you'll be redirected back automatically.")
-  message("(You may briefly see 'Site can't be reached' - this is normal!)\n")
-  
-  # Variable to store the authorization code
+
+  message("\nOpening browser for Spotify authentication...")
+
   auth_code <- NULL
-  
-  # Create httpuv server to catch callback
+
   app <- list(
     call = function(req) {
-      # Parse query parameters
       query <- req$QUERY_STRING
-      
+
       if (grepl("code=", query)) {
-        # Extract code
         code <- sub(".*code=([^&]+).*", "\\1", query)
         auth_code <<- code
-        
-        # Return success page
+
         list(
           status = 200L,
           headers = list('Content-Type' = 'text/html'),
-          body = paste0(
-            "<!DOCTYPE html><html><head><title>Success</title></head><body>",
-            "<h1 style='color: #1DB954; font-family: Arial;'>✓ Authentication Successful!</h1>",
-            "<p style='font-family: Arial;'>You can close this window and return to R.</p>",
-            "</body></html>"
-          )
+          body = "<h1>Authentication successful! You can close this window.</h1>"
         )
       } else {
-        # Return error page
         list(
           status = 400L,
           headers = list('Content-Type' = 'text/html'),
-          body = paste0(
-            "<!DOCTYPE html><html><head><title>Error</title></head><body>",
-            "<h1 style='color: red; font-family: Arial;'>✗ Authentication Failed</h1>",
-            "<p style='font-family: Arial;'>No authorization code received.</p>",
-            "</body></html>"
-          )
+          body = "<h1>Authentication failed</h1>"
         )
       }
     }
   )
-  
+
   # Start server
   server <- httpuv::startServer("127.0.0.1", port, app)
   on.exit(httpuv::stopServer(server), add = TRUE)
-  
-  # Open browser
-  utils::browseURL(auth_url)
-  
-  # Wait for callback (max 60 seconds)
+
+  # Open browser safely
+  if (interactive()) {
+    utils::browseURL(auth_url)
+  } else {
+    message("Open this URL manually: ", auth_url)
+  }
+
   message("Waiting for authorization...")
-  
+
   timeout <- 60
   elapsed <- 0
-  
+
   while (is.null(auth_code) && elapsed < timeout) {
     httpuv::service(timeout = 100)
-    elapsed <- elapsed + 0.1
     Sys.sleep(0.1)
+    elapsed <- elapsed + 0.1
   }
-  
+
   if (is.null(auth_code)) {
-    stop("Authentication timeout. Please try again.")
+    stop("Authentication timeout.")
   }
-  
-  message("Authorization received")
-  message("Exchanging code for access token...")
-  
-  # Exchange code for token
+
+  message("Exchanging code for token...")
+
   token_response <- httr::POST(
     "https://accounts.spotify.com/api/token",
     encode = "form",
@@ -164,44 +135,29 @@ spotify_auth <- function(client_id = NULL, client_secret = NULL) {
       client_secret = client_secret
     )
   )
-  
+
   if (httr::status_code(token_response) != 200) {
-    error_content <- httr::content(token_response, as = "text")
-    stop(sprintf("Token exchange failed: %s", error_content))
+    stop("Token exchange failed.")
   }
-  
+
   token_data <- httr::content(token_response)
-  
-  # Create token object
+
   token <- list(
     credentials = list(
       access_token = token_data$access_token,
       refresh_token = token_data$refresh_token,
       expires_in = token_data$expires_in,
-      expires_at = as.numeric(Sys.time()) + token_data$expires_in,
-      token_type = token_data$token_type
-    ),
-    endpoint = list(
-      authorize = "https://accounts.spotify.com/authorize",
-      access = "https://accounts.spotify.com/api/token"
-    ),
-    app = list(
-      appname = "lyricsLab",
-      key = client_id,
-      secret = client_secret
+      expires_at = as.numeric(Sys.time()) + token_data$expires_in
     )
   )
-  
+
   class(token) <- "Token2.0"
-  
-  # Save to environment
+
   assign("spotify_token", token, envir = .GlobalEnv)
-  
-  message("\nSuccessfully authenticated with Spotify!")
-  message("Token saved. You can now use other functions.")
-  message(sprintf("Token expires in %d minutes.\n", round(token_data$expires_in / 60)))
-  
-  return(invisible(token))
+
+  message("Authentication successful!")
+
+  invisible(token)
 }
 
 #' Get Tracks from a Spotify Playlist

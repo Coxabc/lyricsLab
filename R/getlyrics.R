@@ -100,7 +100,7 @@ get_lyrics <- function(artist, song, access_token = NULL) {
   
   class(result) <- c("lyrics_lab", "list")
   
-  message(sprintf("✓ Successfully retrieved %d lines of lyrics!", nrow(structure)))
+  message(sprintf("Successfully retrieved %d lines of lyrics!", nrow(structure)))
   
   return(result)
 }
@@ -185,16 +185,20 @@ genius_search <- function(artist, song, access_token) {
 #' @noRd
 #'
 #' @importFrom rvest read_html html_elements html_text2
-#' @importFrom magrittr %>%
+
 scrape_genius_lyrics <- function(url) {
-  
   tryCatch({
-    # Read the webpage and extract lyrics
-    # Using html_text2() preserves line breaks better than html_text()
-    lyrics <- rvest::read_html(url) %>%
-      rvest::html_elements("div[class^='Lyrics__Container']") %>%  # Matches all Lyrics__Container divs
-      rvest::html_text2() %>%
-      paste(collapse = "\n")
+    # Step 1: Read the HTML page
+    page <- rvest::read_html(url)
+    
+    # Step 2: Select all lyrics container divs
+    nodes <- rvest::html_elements(page, "div[class^='Lyrics__Container']")
+    
+    # Step 3: Extract text from nodes
+    lyrics <- rvest::html_text2(nodes)
+    
+    # Step 4: Collapse into a single string
+    lyrics <- paste(lyrics, collapse = "\n")
     
     if (nchar(lyrics) == 0) {
       stop("No lyrics found on page")
@@ -206,7 +210,6 @@ scrape_genius_lyrics <- function(url) {
     stop(sprintf("Failed to scrape lyrics: %s", e$message))
   })
 }
-
 
 #' Process Raw Lyrics Text
 #'
@@ -383,58 +386,6 @@ validate_lyrics <- function(obj) {
   }
   
   return(TRUE)
-}
-
-
-#' Print Method for lyrics_lab Objects
-#'
-#' @param x A lyrics_lab object
-#' @param ... Additional arguments (ignored)
-#'
-#' @keywords internal
-#' @noRd
-print.lyrics_lab <- function(x, ...) {
-  cat("=== Lyrics Lab Object ===\n")
-  cat(sprintf("Song: %s\n", x$metadata$title))
-  cat(sprintf("Artist: %s\n", x$metadata$artist))
-  if (!is.null(x$metadata$album) && x$metadata$album != "Unknown") {
-    cat(sprintf("Album: %s\n", x$metadata$album))
-  }
-  cat(sprintf("Lines: %d\n", length(x$lyrics)))
-  cat(sprintf("URL: %s\n", x$metadata$url))
-  cat("\nFirst few lines:\n")
-  cat(paste(head(x$lyrics, 5), collapse = "\n"))
-  if (length(x$lyrics) > 5) {
-    cat("\n...\n")
-  }
-  cat(sprintf("\nSections detected: %s\n", 
-             paste(unique(x$structure$section), collapse = ", ")))
-  invisible(x)
-}
-
-
-#' Summary Method for lyrics_lab Objects
-#'
-#' @param object A lyrics_lab object
-#' @param ... Additional arguments (ignored)
-#'
-#' @keywords internal
-#' @noRd
-summary.lyrics_lab <- function(object, ...) {
-  cat("=== Lyrics Summary ===\n")
-  cat(sprintf("Song: %s by %s\n", object$metadata$title, object$metadata$artist))
-  cat(sprintf("Total lines: %d\n", length(object$lyrics)))
-  cat(sprintf("Total words: %d\n", 
-             length(unlist(strsplit(paste(object$lyrics, collapse = " "), "\\s+")))))
-  
-  # Section breakdown
-  section_counts <- table(object$structure$section)
-  cat("\nSection breakdown:\n")
-  for (section in names(section_counts)) {
-    cat(sprintf("  %s: %d lines\n", section, section_counts[section]))
-  }
-  
-  invisible(object)
 }
 
 #' View Full Lyrics
