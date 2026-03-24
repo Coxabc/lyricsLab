@@ -1,0 +1,158 @@
+# Getting Started with lyricsLab
+
+## Welcome to lyricsLab!
+
+lyricsLab is an R package for analyzing song lyrics and Spotify
+listening history. This guide will help you get started in just a few
+minutes.
+
+### Installation
+
+``` r
+# install.packages("devtools")
+devtools::install_github("Coxabc/lyricsLab")
+```
+
+### Setup
+
+#### 1. Get Genius API Token (for lyrics analysis)
+
+**Step 1:** Go to <https://genius.com/api-clients>  
+**Step 2:** Sign up or log in (free)  
+**Step 3:** Click “New API Client” and fill in:
+
+- App Name: lyricsLab
+- App Website: <http://localhost>
+- Redirect URI: (leave default)
+
+**Step 4:** Copy your “Client Access Token”  
+**Step 5:** Set it in R:
+
+``` r
+Sys.setenv(GENIUS_API_TOKEN = "your_token_here")
+```
+
+#### 2. Get Spotify API Credentials (for listening history)
+
+**Step 1:** Go to <https://developer.spotify.com/dashboard>  
+**Step 2:** Log in with your Spotify account  
+**Step 3:** Click “Create app” and fill in:
+
+- App name: lyricsLab
+- App description: R package for music analysis
+- Redirect URI: `http://127.0.0.1:1410/`
+
+**Step 4:** Copy your Client ID and Client Secret  
+**Step 5:** Set them in R:
+
+``` r
+Sys.setenv(SPOTIFY_CLIENT_ID     = "your_client_id")
+Sys.setenv(SPOTIFY_CLIENT_SECRET = "your_client_secret")
+```
+
+> **Note:** Spotify’s Web API requires a **Spotify Premium** account.
+
+### Quick start
+
+``` r
+library(lyricsLab)
+
+# 1. Authenticate with Spotify
+spotify_auth()
+
+# 2. Get lyrics for a single song
+lyrics <- get_lyrics("Ed Sheeran", "Drive")
+
+# 3. Run analysis
+sentiment_score(lyrics)
+complexity_score(lyrics)
+analyze_emotions(lyrics)
+theme_detection(lyrics)
+
+# 4. Plot
+plot_sentiment_arc(lyrics)
+plot_emotions_web(lyrics)
+plot_themes(lyrics)
+```
+
+### Example: analyze a playlist
+
+``` r
+spotify_auth()
+
+analysis <- analyze_playlist(
+  "https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M",
+  max_songs = 50
+)
+
+plot_sentiment(analysis)
+plot_complexity(analysis)
+plot_scatter(analysis)
+plot_top_complex(analysis)
+
+calculate_listening_diversity(analysis)
+```
+
+### Example: your listening habits
+
+``` r
+spotify_auth()
+history <- get_recently_played()
+
+plot_listening_patterns(history, type = "hourly")
+plot_listening_patterns(history, type = "daily")
+plot_listening_patterns(history, type = "weekly")
+
+calculate_listening_diversity(history)
+```
+
+### Function reference
+
+#### Authentication & Spotify data
+
+| Function                                                                                       | Description                                      |
+|------------------------------------------------------------------------------------------------|--------------------------------------------------|
+| [`spotify_auth()`](https://coxabc.github.io/lyricsLab/reference/spotify_auth.md)               | Authenticate with Spotify (opens browser)        |
+| [`get_recently_played()`](https://coxabc.github.io/lyricsLab/reference/get_recently_played.md) | Your 50 most recently played tracks              |
+| [`get_top_tracks()`](https://coxabc.github.io/lyricsLab/reference/get_top_tracks.md)           | Your top tracks over short, medium, or long term |
+| [`get_playlist_tracks()`](https://coxabc.github.io/lyricsLab/reference/get_playlist_tracks.md) | All tracks from a playlist URL or ID             |
+
+#### Lyrics
+
+| Function                             | Description                           |
+|--------------------------------------|---------------------------------------|
+| `get_lyrics(artist, song)`           | Fetch lyrics from Genius              |
+| `get_multiple_lyrics(artist, songs)` | Batch fetch lyrics for multiple songs |
+| `preview_lyrics(lyrics)`             | Print metadata and first few lines    |
+| `view_lyrics(lyrics)`                | Print full lyrics to console          |
+
+#### Analysis
+
+| Function                          | Description                                          |
+|-----------------------------------|------------------------------------------------------|
+| `sentiment_score(lyrics)`         | Single overall sentiment score (0–100)               |
+| `sentiment_arc(lyrics)`           | Line-by-line sentiment scores and trajectory         |
+| `analyze_emotions(lyrics)`        | 8 NRC emotions with counts and percentages           |
+| `positive_negative_ratio(lyrics)` | Ratio of positive to negative lines                  |
+| `complexity_score(lyrics)`        | Vocabulary richness, reading level, complexity score |
+| `theme_detection(lyrics)`         | Keyword-based theme detection across 23 categories   |
+
+#### Visualization
+
+| Function                           | Description                                 |
+|------------------------------------|---------------------------------------------|
+| `plot_sentiment_arc(lyrics)`       | Line chart of sentiment through the song    |
+| `plot_emotions_bar(lyrics)`        | Bar chart of 8 NRC emotions                 |
+| `plot_emotions_web(lyrics)`        | Radar chart of 8 NRC emotions               |
+| `plot_themes(lyrics)`              | Bar chart of top themes                     |
+| `plot_listening_patterns(history)` | Hourly, daily, or weekly listening patterns |
+
+#### Playlist analysis
+
+| Function                         | Description                               |
+|----------------------------------|-------------------------------------------|
+| `analyze_playlist(playlist_url)` | Fetch and analyze all songs in a playlist |
+| `plot_sentiment(analysis)`       | Sentiment distribution across playlist    |
+| `plot_complexity(analysis)`      | Complexity distribution across playlist   |
+| `plot_scatter(analysis)`         | Sentiment vs complexity scatter           |
+| `plot_top_complex(analysis)`     | Top 10 most complex songs                 |
