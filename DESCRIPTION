@@ -16,7 +16,8 @@ Imports:
     stringr,
     syuzhet,
     ggplot2,
-    httpuv
+    httpuv,
+    magrittr
 Suggests: 
     knitr,
     rmarkdown
